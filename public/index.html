@@ -11,28 +11,71 @@
     </style>
 </head>
 <body>
-    <ul id="messages"></ul>
-    <form id="form" action="">
-        <input id="input" autocomplete="off" /><button>Envoyer</button>
-    </form>
+    <h2>Connectez-vous</h2>
+    <input id="username" placeholder="Nom d'utilisateur">
+    <button id="login">Se connecter</button>
+
+    <div id="chat" style="display: none;">
+        <h2>Chat</h2>
+        <select id="users"></select>
+        <ul id="messages"></ul>
+        <form id="form" action="">
+            <input id="input" autocomplete="off" /><button>Envoyer</button>
+        </form>
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
         var socket = io();
+        var usernameInput = document.getElementById('username');
+        var loginButton = document.getElementById('login');
+        var chatDiv = document.getElementById('chat');
+        var usersSelect = document.getElementById('users');
         var form = document.getElementById('form');
         var input = document.getElementById('input');
+        var messages = document.getElementById('messages');
+
+        loginButton.addEventListener('click', function() {
+            var username = usernameInput.value;
+            if (username) {
+                socket.emit('register', username);
+                chatDiv.style.display = 'block';
+                usernameInput.style.display = 'none';
+                loginButton.style.display = 'none';
+            }
+        });
 
         form.addEventListener('submit', function(e) {
             e.preventDefault();
-            if (input.value) {
-                socket.emit('chat message', input.value);
+            var recipient = usersSelect.value;
+            var message = input.value;
+            if (recipient && message) {
+                socket.emit('chat message', { recipient, message });
                 input.value = '';
             }
         });
 
-        socket.on('chat message', function(msg) {
+        socket.on('user connected', function(username) {
+            var option = document.createElement('option');
+            option.value = username;
+            option.textContent = username;
+            usersSelect.appendChild(option);
+        });
+
+        socket.on('user disconnected', function(username) {
+            var options = usersSelect.options;
+            for (var i = 0; i < options.length; i++) {
+                if (options[i].value === username) {
+                    usersSelect.remove(i);
+                    break;
+                }
+            }
+        });
+
+        socket.on('chat message', function(data) {
             var item = document.createElement('li');
-            item.textContent = msg;
-            document.getElementById('messages').appendChild(item);
+            item.textContent = `${data.sender}: ${data.message}`;
+            messages.appendChild(item);
             window.scrollTo(0, document.body.scrollHeight);
         });
     </script>
